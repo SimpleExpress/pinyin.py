@@ -4,58 +4,70 @@
 """
     Author:cleverdeng
     E-mail:clverdeng@gmail.com
+
+    Modified by glide.ming@gmail.com:
+    - add Python 3 support
+    - some adjustments
+    note: not test setup script yet.
 """
 
 __version__ = '0.9'
 __all__ = ["PinYin"]
 
+import sys
 import os.path
+
+if sys.version < '3':
+    import codecs
+
+    def u(x):
+        return codecs.unicode_escape_decode(x)[0]
+else:
+    def u(x):
+        return x
 
 
 class PinYin(object):
     def __init__(self, dict_file='word.data'):
-        self.word_dict = {}
-        self.dict_file = dict_file
+        self.__word_dict = {}
+        self.__dict_file = dict_file
+        self.__load_word()
 
+    def __load_word(self):
+        if not os.path.exists(self.__dict_file):
+            raise IOError("word file not found: %s" % self.__dict_file)
 
-    def load_word(self):
-        if not os.path.exists(self.dict_file):
-            raise IOError("NotFoundFile")
+        with open(self.__dict_file) as fh:
+            for line in fh:
+                values = line.split('    ')
+                if len(values) < 2:  # invalid record
+                    continue
+                self.__word_dict[values[0]] = values[1]
 
-        with file(self.dict_file) as f_obj:
-            for f_line in f_obj.readlines():
-                try:
-                    line = f_line.split('    ')
-                    self.word_dict[line[0]] = line[1]
-                except:
-                    line = f_line.split('   ')
-                    self.word_dict[line[0]] = line[1]
-
-
-    def hanzi2pinyin(self, string=""):
+    def get_full_pinyin(self, chinese_string):
         result = []
-        if not isinstance(string, unicode):
-            string = string.decode("utf-8")
-        
-        for char in string:
+
+        for char in u(chinese_string):
             key = '%X' % ord(char)
-            result.append(self.word_dict.get(key, char).split()[0][:-1].lower())
+            pinyin = self.__word_dict.get(key, char).split()[0][:-1].lower()
+            result.append(pinyin)
 
         return result
 
+    def get_abbr_pinyin(self, chinese_string):
+        full_result = self.get_full_pinyin(chinese_string)
+        result = [v[0] if v else '' for v in full_result]
+        return ''.join(result)
 
-    def hanzi2pinyin_split(self, string="", split=""):
-        result = self.hanzi2pinyin(string=string)
-        if split == "":
-            return result
-        else:
-            return split.join(result)
+    def get_full_pinyin_separated(self, chinese_string, sep=" "):
+        full_result = self.get_full_pinyin(chinese_string)
+        return sep.join(full_result)
 
 
 if __name__ == "__main__":
     test = PinYin()
-    test.load_word()
     string = "钓鱼岛是中国的"
-    print "in: %s" % string
-    print "out: %s" % str(test.hanzi2pinyin(string=string))
-    print "out: %s" % test.hanzi2pinyin_split(string=string, split="-")
+    print("in: %s" % string)
+    print("full pinyin: %s" % str(test.get_full_pinyin(string)))
+    print("full pinyin: %s" % test.get_full_pinyin_separated(string, sep="-"))
+    print("abbr: %s" % test.get_abbr_pinyin(string))
